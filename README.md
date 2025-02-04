@@ -8,6 +8,7 @@ Notion公式自动转换工具是一个用户脚本(UserScript)，旨在帮助�
 - 自动化 $$ 包围的公式转换任务。
 - 提高在Notion中处理复杂数据时的效率。
 - 减少手动输入带来的错误率。
+![PixPin_2025-02-04_20-48-15](https://github.com/user-attachments/assets/46c4177d-31cc-4c37-9a26-bbbff2195072)
 
 ## 安装指南
 
