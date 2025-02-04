@@ -1,5 +1,4 @@
-<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
-<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
 # Notion公式自动转换工具 ✨
 ![公式转换演示](https://github.com/user-attachments/assets/46c4177d-31cc-4c37-9a26-bbbff2195072)
 
@@ -24,7 +23,8 @@
 $$ \sqrt{a^2 + b^2} $$
 
 自动转换为：
-\sqrt{a^2 + b^2}
+![image](https://github.com/user-attachments/assets/e7fea3e8-5ed2-4612-ae3e-f3f44ecfe7c0)
+
 ```
 
 ## 🤝 共建生态
