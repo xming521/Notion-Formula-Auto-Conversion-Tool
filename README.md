@@ -1,26 +1,35 @@
+# Notion公式自动转换工具 ✨
+![公式转换演示](https://github.com/user-attachments/assets/46c4177d-31cc-4c37-9a26-bbbff2195072)
 
-# Notion公式自动转换工具 (Notion-Formula-Auto-Conversion-Tool)
+## 🚀 核心价值
+- **智能转换**：自动识别并转换 `$$` 包裹的数学公式
+- **零配置**：安装即用，无需复杂设置
+- **跨平台**：支持所有基于Chromium的现代浏览器
+- **安全可靠**：开源MIT协议，代码透明可审计
 
-## 概述
-Notion公式自动转换工具是一个用户脚本(UserScript)，旨在帮助用户更高效地在Notion中转换从LLM输出的公式。通过自动化一些常见的转换任务，该工具可以减少手动输入错误，并加快工作流程。
+## ⚡️ 即刻体验
+### 环境准备
+- [Tampermonkey](https://www.tampermonkey.net/) 扩展（[Chrome](https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo) | [Firefox](https://addons.mozilla.org/firefox/addon/tampermonkey/)）
+- 最新版Notion工作区访问权限
 
-## 功能
-- 自动化 $$ 包围的公式转换任务。
-![PixPin_2025-02-04_20-48-15](https://github.com/user-attachments/assets/46c4177d-31cc-4c37-9a26-bbbff2195072)
+### 🛠️ 一键安装
+1. 点击安装脚本：[GreasyFork最新版本](https://greasyfork.org/zh-CN/scripts/525730-notion-%E5%85%AC%E5%BC%8F%E8%87%AA%E5%8A%A8%E8%BD%AC%E6%8D%A2%E5%B7%A5%E5%85%B7)
+2. 刷新Notion页面即可生效
 
-## 安装指南
+## 🎯 工作场景
+```markdown
+当输入：
+$$ \sqrt{a^2 + b^2} $$
 
-### 前提条件
-- 一个支持用户脚本的浏览器（如Firefox或Chrome），以及相应的用户脚本管理器扩展（如Tampermonkey）。
+自动转换为：
+sqrt(pow(a, 2) + pow(b, 2))
+```
 
-### 步骤
-1. 确保你的浏览器已经安装了Tampermonkey。
-2. 访问[Notion公式自动转换工具]([https://github.com/skyance/Notion-Formula-Auto-Conversion-Tool/blob/main/Notion-Formula-Auto-Conversion-Tool-1.3.user.js](https://greasyfork.org/zh-CN/scripts/525730-notion-%E5%85%AC%E5%BC%8F%E8%87%AA%E5%8A%A8%E8%BD%AC%E6%8D%A2%E5%B7%A5%E5%85%B7/code))页面。
-3. 在Tampermonkey添加此脚本到你的浏览器。
-4. 打开Notion并开始使用Notion-Formula-Auto-Conversion-Tool。
+## 🤝 共建生态
+[![GitHub Stars](https://img.shields.io/github/stars/skyance/Notion-Formula-Auto-Conversion-Tool?style=social)](https://github.com/skyance/Notion-Formula-Auto-Conversion-Tool)
 
-## 使用说明
-一旦脚本被正确安装和启用，当你在Notion中编辑或创建公式属性时，它会自动应用预设的转换规则来简化你的工作流程。更多详细的使用指南，请参阅项目主页上的文档或示例。
-
-## 贡献
-我们欢迎任何形式的贡献，包括但不限于bug报告、功能请求、代码提交等。请访问我们的[GitHub仓库](https://github.com/skyance/Notion-Formula-Auto-Conversion-Tool)了解更多信息。
+参与方式：
+- 📝 文档改进：完善使用案例和教程
+- 🐞 问题追踪：提交可复现的BUG报告
+- 💡 功能提案：在Discussions分享创意
+- 🛠️ 代码贡献：遵循现有代码风格提交PR
