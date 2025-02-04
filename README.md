@@ -18,14 +18,12 @@
 2. 刷新Notion页面即可生效
 
 ## 🎯 工作场景
-```markdown
 当输入：
 $$ \sqrt{a^2 + b^2} $$
 
 自动转换为：
 ![image](https://github.com/user-attachments/assets/e7fea3e8-5ed2-4612-ae3e-f3f44ecfe7c0)
 
-```
 
 ## 🤝 共建生态
 [![GitHub Stars](https://img.shields.io/github/stars/skyance/Notion-Formula-Auto-Conversion-Tool?style=social)](https://github.com/skyance/Notion-Formula-Auto-Conversion-Tool)
