@@ -265,7 +265,7 @@
                 </svg>
             </button>
             <div class="content-wrapper">
-                <button id="convert-btn">🔄 (0)</button>
+                <button id="convert-btn">🔄</button>
                 <div id="progress-container">
                     <div id="progress-bar"></div>
                 </div>
@@ -435,7 +435,8 @@
     }
 
     // 优化的公式转换
-    async function convertFormula(editor, formula) {
+    async function convertFormula(editor, formula, retryCount = 0) {
+        const MAX_RETRIES = 3; // 最大重试次数
         try {
             // 精确查找公式的首次出现位置
             const fullText = editor.textContent;
@@ -517,10 +518,17 @@
                 hasSvg: true,
                 buttonText: ['equation', '公式', 'math']
             });
-            if (!formulaButton) throw new Error('未找到公式按钮');
+            if (!formulaButton) {
+                if (retryCount < MAX_RETRIES) {
+                    console.log(`未找到公式按钮，正在重试(${retryCount + 1}/${MAX_RETRIES})...`);
+                    await sleep(500 * (retryCount + 1)); // 每次重试增加等待时间
+                    return await convertFormula(editor, formula, retryCount + 1);
+                }
+                throw new Error(`未找到公式按钮(已重试${MAX_RETRIES}次)`);
+            }
 
             await simulateClick(formulaButton);
-            await sleep(50);
+            await sleep(100); // 增加等待时间
 
             const doneButton = await findButton(document, {
                 buttonText: ['done', '完成'],
@@ -558,7 +566,7 @@
             for (const editor of editors) {
                 const text = editor.textContent;
                 const formulas = findFormulas(text);
-                totalFormulas += formulas.length;
+                totalFormulas += formulas.length / 2;
                 allFormulas.push({ editor, formulas });
             }
 
@@ -582,8 +590,8 @@
                 }
             }
 
-            updateStatus(`Done:${formulaCount}`, 3000);
-            convertBtn.textContent = `🔄 (${formulaCount})`;
+            updateStatus(`Completed!`, 3000);
+            convertBtn.textContent = `🔄`; // (${formulaCount})
 
         } catch (error) {
             console.error('转换过程出错:', error);
@@ -629,7 +637,7 @@
     setTimeout(() => {
         const formulas = findFormulas(document.body.textContent);
         if (formulas.length > 0) {
-            convertBtn.textContent = `🔄(${formulas.length})`;
+            convertBtn.textContent = `🔄`; // (${formulas.length})
         }
     }, 1000);
 
