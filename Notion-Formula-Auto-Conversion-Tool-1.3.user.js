@@ -7,9 +7,9 @@
 // @match        https://www.notion.so/*
 // @grant        GM_addStyle
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js
-// ==/UserScript==
 
-(function() {
+// ==/UserScript==
+(function () {
     'use strict';
 
     GM_addStyle(`
@@ -325,6 +325,8 @@
         console.log('[状态]', text);
     }
 
+
+
     // 公式查找
     function findFormulas(text) {
         const formulas = [];
@@ -375,7 +377,7 @@
                     // 验证其他类型公式的结构完整性
                     if (formula.length > 4 && // 确保公式有实际内容
                         ((formula.startsWith('$') && formula.endsWith('$') && !formula.includes('$$')) ||
-                         (formula.startsWith('\\(') && formula.endsWith('\\)')))) {
+                            (formula.startsWith('\\(') && formula.endsWith('\\)')))) {
                         matches.push({
                             formula: formula,
                             index: index,
@@ -446,10 +448,11 @@
         const {
             buttonText = [],
             hasSvg = false,
-            attempts = 8
+            attempts = 8,
+            role = 'button' // 新增role参数，默认为'button'
         } = options;
 
-        const buttons = area.querySelectorAll('[role="button"]');
+        const buttons = area.querySelectorAll(`[role="${role}"]`);
         const cachedButtons = Array.from(buttons);
 
         for (let i = 0; i < attempts; i++) {
@@ -472,10 +475,10 @@
         const MAX_RETRIES = 3; // 最大重试次数
         try {
             // 获取文本内容
-            const fullText = editor.textContent;
+            let fullText = editor.textContent;
 
             // 获取所有文本节点和位置信息
-            const textNodes = [];
+            let textNodes = [];
             const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
             let accumulatedLength = 0;
             let node;
@@ -502,7 +505,10 @@
 
             // 查找块级公式
             const blockRegex = /\$\$\n([\s\S]*?)\n\$\$/g;
+            const blockRegex2 = /\$\$([\s\S]*?)\$\$/g; // 不换行的块级公式
+
             let blockMatch;
+            let blockMatch2;
             let foundMatch = false;
 
             while ((blockMatch = blockRegex.exec(fullText)) !== null) {
@@ -516,6 +522,72 @@
                     }
                 }
             }
+
+            //检查不换行的块级公式
+            if (!blockMatch && (blockRegex2.exec(fullText) !== null)) {
+                blockMatch2 = true;
+                formulaIndex = fullText.indexOf(formula);
+                if (formulaIndex === -1) {
+                    console.warn('未找到匹配的文本');
+                    return;
+                }
+                formulaEnd = formulaIndex + formula.length;
+                const relevantNodes = textNodes.filter(nodeInfo => {
+                    return !(nodeInfo.end <= formulaIndex || nodeInfo.start >= formulaEnd);
+                });
+
+                if (relevantNodes.length === 0) {
+                    console.warn('未找到包含公式的文本节点');
+                    return;
+                }
+
+                const targetNode = relevantNodes[0].node;
+                let startOffset = formulaIndex - relevantNodes[0].start - 2;
+
+                //如果startOffset 不是0 表示还是行内公式
+                if (startOffset !== 0) {
+                    blockMatch2 = false;
+                }
+
+                const range = document.createRange();
+                range.setStart(targetNode, startOffset);
+                let endOffset = startOffset + formula.length + 4;
+                range.setEnd(targetNode, Math.min(endOffset, targetNode.length));
+
+                const selection = window.getSelection();
+                selection.removeAllRanges();
+                await sleep(200);
+                selection.addRange(range);
+                await sleep(200);
+
+
+                if (blockMatch2) {
+                    document.execCommand('insertText', false, formula);
+                } else {
+                    document.execCommand('insertText', false, '$' + formula + '$');
+                    fullText = editor.textContent;
+                }
+
+
+                await sleep(500);
+
+                //重新获取文本节点
+                textNodes = [];
+                const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+                let accumulatedLength = 0;
+                let node;
+
+                while (node = walker.nextNode()) {
+                    const nodeLength = node.textContent.length;
+                    textNodes.push({
+                        node,
+                        start: accumulatedLength,
+                        end: accumulatedLength + nodeLength
+                    });
+                    accumulatedLength += nodeLength;
+                }
+            }
+
 
             // 检查是否是块级公式并且内容匹配
             if (blockMatch && foundMatch) {
@@ -552,8 +624,14 @@
                         range1.deleteContents();
                     }
                 }, 500);
-            } else {
+            }
+            else if (blockMatch2) {
+                formulaIndex = formulaIndex - 2;
+                formulaEnd = formulaIndex + formula.length;
+            }
+            else {
                 // 非块级公式，查找普通位置
+                fullText = editor.textContent;
                 formulaIndex = fullText.indexOf(formula);
                 if (formulaIndex === -1) {
                     console.warn('未找到匹配的文本');
@@ -573,8 +651,10 @@
                 return;
             }
 
+
             const targetNode = relevantNodes[0].node;
             const startOffset = formulaIndex - relevantNodes[0].start;
+
 
             // 设置选区
             const range = document.createRange();
@@ -583,10 +663,11 @@
                 range.setStart(targetNode, startOffset);
                 const endOffset = startOffset + formula.length;
                 range.setEnd(targetNode, Math.min(endOffset, targetNode.length));
-            } catch(e) {
+            } catch (e) {
                 console.warn('Range设置失败:', e);
                 return false;
             }
+
 
             // 添加调试信息
             console.log('选区信息:', {
@@ -607,6 +688,31 @@
             const area = await findOperationArea();
             if (!area) throw new Error('未找到操作区域');
 
+
+            if (blockMatch2) {
+
+                await sleep(200); // 增加等待时间
+
+                const formulaButton = await findButton(area, {
+                    hasSvg: true,
+                    buttonText: ['文本']
+                });
+
+                await simulateClick(formulaButton);
+                await sleep(200); // 增加等待时间
+
+                const formulaButton1 = await findButton(area, {
+                    buttonText: ['公式区块'],
+                    role: 'menuitem'
+                });
+
+                await simulateClick(formulaButton1);
+                await sleep(200); // 增加等待时间
+
+                return true;
+            }
+
+
             const formulaButton = await findButton(area, {
                 hasSvg: true,
                 buttonText: ['equation', '公式', 'math']
@@ -621,7 +727,7 @@
             }
 
             await simulateClick(formulaButton);
-            await sleep(100); // 增加等待时间
+            await sleep(200); // 增加等待时间
 
             const doneButton = await findButton(document, {
                 buttonText: ['done', '完成'],
@@ -630,7 +736,7 @@
             if (!doneButton) throw new Error('未找到完成按钮');
 
             await simulateClick(doneButton);
-            await sleep(10);
+            await sleep(200);
 
             return true;
         } catch (error) {

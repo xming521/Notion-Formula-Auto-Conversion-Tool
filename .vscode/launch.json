@@ -1,0 +1,16 @@
+{
+    "configurations": [
+        {
+            "type": "chrome",
+            "name": "https://www.notion.so/191514ffe59480afa7e5fc24de5a8f2f#191514ffe59480a3ba45d3bf377a2647",
+            "url": "https://www.notion.so/191514ffe59480afa7e5fc24de5a8f2f#191514ffe59480a3ba45d3bf377a2647",
+            "port": 9222,
+            "webRoot": "${workspaceFolder}",
+            "sourceMaps": true,
+            "request": "attach",
+            "sourceMapPathOverrides": {
+                "*": "${workspaceFolder}/*"
+            }
+        }
+    ]
+}
