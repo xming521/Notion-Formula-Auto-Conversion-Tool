@@ -375,7 +375,7 @@
                     });
                 } else {
                     // 验证其他类型公式的结构完整性
-                    if (formula.length > 4 && // 确保公式有实际内容
+                    if (formula.length > 2 && // 确保公式有实际内容
                         ((formula.startsWith('$') && formula.endsWith('$') && !formula.includes('$$')) ||
                             (formula.startsWith('\\(') && formula.endsWith('\\)')))) {
                         matches.push({
