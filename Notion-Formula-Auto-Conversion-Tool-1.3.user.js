@@ -568,9 +568,7 @@
                     fullText = editor.textContent;
                 }
 
-
                 await sleep(500);
-
                 //重新获取文本节点
                 textNodes = [];
                 const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
@@ -591,39 +589,95 @@
 
             // 检查是否是块级公式并且内容匹配
             if (blockMatch && foundMatch) {
-                isBlockFormula = true;
-                // 准确定位第二行
-                const firstLineEnd = fullText.indexOf('\n', blockMatch.index) + 1;
-                formulaIndex = firstLineEnd;
-                formulaEnd = fullText.indexOf('\n', firstLineEnd);
+                blockMatch2 = true;
+                formulaIndex = fullText.indexOf(formula);
+                if (formulaIndex === -1) {
+                    console.warn('未找到匹配的文本');
+                    return;
+                }
+                formulaEnd = formulaIndex + formula.length;
+                const relevantNodes = textNodes.filter(nodeInfo => {
+                    return !(nodeInfo.end <= formulaIndex || nodeInfo.start >= formulaEnd);
+                });
 
-                // 记录第一行和第三行的$$位置，供后续删除使用
-                firstLine = blockMatch.index;
-                lastLine = blockMatch.index + blockMatch[0].length - 2;
+                if (relevantNodes.length === 0) {
+                    console.warn('未找到包含公式的文本节点');
+                    return;
+                }
 
-                // 删除第一行和第三行的$$
-                setTimeout(async () => {
-                    const selection = window.getSelection();
-                    selection.removeAllRanges();
+                const targetNode = relevantNodes[0].node;
+                let startOffset = formulaIndex - relevantNodes[0].start - 3;
 
-                    // 删除第三行的$$
-                    const range3 = document.createRange();
-                    const node3 = findNodeAtIndex(editor, lastLine, textNodes);
-                    if (node3) {
-                        range3.setStart(node3.node, lastLine - node3.start);
-                        range3.setEnd(node3.node, lastLine + 2 - node3.start);
-                        range3.deleteContents();
-                    }
+                //如果startOffset 不是0 表示还是行内公式
+                if (startOffset !== 0) {
+                    blockMatch2 = false;
+                }
 
-                    // 删除第一行的$$
-                    const range1 = document.createRange();
-                    const node1 = findNodeAtIndex(editor, firstLine, textNodes);
-                    if (node1) {
-                        range1.setStart(node1.node, firstLine - node1.start);
-                        range1.setEnd(node1.node, firstLine + 2 - node1.start);
-                        range1.deleteContents();
-                    }
-                }, 500);
+                const range = document.createRange();
+                range.setStart(targetNode, startOffset);
+                let endOffset = startOffset + formula.length + 6;
+                range.setEnd(targetNode, Math.min(endOffset, targetNode.length));
+
+                const selection = window.getSelection();
+                selection.removeAllRanges();
+                await sleep(200);
+                selection.addRange(range);
+                await sleep(200);
+
+
+                if (blockMatch2) {
+                    document.execCommand('insertText', false, formula);
+                } else {
+                    document.execCommand('insertText', false, '$' + formula + '$');
+                    fullText = editor.textContent;
+                }
+
+                await sleep(500);
+                //重新获取文本节点
+                textNodes = [];
+                const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+                let accumulatedLength = 0;
+                let node;
+
+                while (node = walker.nextNode()) {
+                    const nodeLength = node.textContent.length;
+                    textNodes.push({
+                        node,
+                        start: accumulatedLength,
+                        end: accumulatedLength + nodeLength
+                    });
+                    accumulatedLength += nodeLength;
+                }
+
+                // // 记录第一行和第三行的$$位置，供后续删除使用
+                // firstLine = blockMatch.index;
+                // lastLine = blockMatch.index + blockMatch[0].length - 2;
+
+                // // 删除第一行和第三行的$$
+                // const selection = window.getSelection();
+                // selection.removeAllRanges();
+                // await sleep(2000);
+
+                // // 删除第三行的$$
+                // const range3 = document.createRange();
+                // const node3 = findNodeAtIndex(editor, lastLine, textNodes);
+                // if (node3) {
+                //     range3.setStart(node3.node, lastLine - node3.start);
+                //     range3.setEnd(node3.node, lastLine + 2 - node3.start);
+                //     range3.deleteContents();
+                //     await sleep(1000);
+                // }
+
+                // // 删除第一行的$$
+                // const range1 = document.createRange();
+                // const node1 = findNodeAtIndex(editor, firstLine, textNodes);
+                // if (node1) {
+                //     range1.setStart(node1.node, firstLine - node1.start);
+                //     range1.setEnd(node1.node, firstLine + 2 - node1.start);
+                //     range1.deleteContents();
+                //     await sleep(1000);
+
+                // }
             }
             else if (blockMatch2) {
                 formulaIndex = formulaIndex - 2;
