@@ -47,24 +47,13 @@
             opacity: 0.9;
             transform: scale(0.98);
             border-radius: 50%;
-            transform-origin: bottom right;
         }
 
         #formula-helper.collapsed .content-wrapper {
             opacity: 0;
             transform: scale(0.8);
             pointer-events: none;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) 0.05s;
-            transform-origin: bottom right;
-        }
-
-        #formula-helper.collapsed #convert-btn,
-        #formula-helper.collapsed #progress-container,
-        #formula-helper.collapsed #status-text {
-            opacity: 0;
-            transform: scale(0.8);
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            transform-origin: bottom right;
+            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         #formula-helper #convert-btn,
@@ -114,7 +103,6 @@
             position: static;
             width: 100%;
             height: 100%;
-            transform-origin: center;
         }
 
         #formula-helper.collapsed #collapse-btn svg {
@@ -252,12 +240,13 @@
     let panel, statusText, convertBtn, progressBar, progressContainer, collapseBtn;
     let isProcessing = false;
     let formulaCount = 0;
-    let isCollapsed = false;
+    let isCollapsed = true;
     let hoverTimer = null;
 
     function createPanel() {
         panel = document.createElement('div');
         panel.id = 'formula-helper';
+        panel.classList.add('collapsed');
         panel.innerHTML = `
             <button id="collapse-btn">
                 <svg viewBox="0 0 24 24">
@@ -265,7 +254,7 @@
                 </svg>
             </button>
             <div class="content-wrapper">
-                <button id="convert-btn">🔄</button>
+                <button id="convert-btn">🔄 (0)</button>
                 <div id="progress-container">
                     <div id="progress-bar"></div>
                 </div>
@@ -326,13 +315,18 @@
     }
 
     // 公式按钮操作函数
-    async function handleFormulaButton(area) {
+    async function handleLineFormulaButton(area) {
         const MAX_RETRIES = 3; // 最大重试次数
+
         const formulaButton = await findButton(area, {
             hasSvg: true,
             buttonText: ['equation', '公式', 'math']
         });
 
+        // currentSelection.removeAllRanges();
+        // await sleep(200); // 增加等待时间
+        // currentSelection.addRange(savedRange);
+        // await sleep(200); // 增加等待时间
         if (!formulaButton) {
             if (retryCount < MAX_RETRIES) {
                 console.log(`未找到公式按钮，正在重试(${retryCount + 1}/${MAX_RETRIES})...`);
@@ -357,52 +351,9 @@
         return true;
     }
 
-    // 修改原有的convertFormula函数,使用新的handleFormulaButton函数
-    async function block_convertFormula(editor, formula, retryCount = 0) {
-        try {
-            // ...其他代码保持不变...
 
-            const area = await findOperationArea();
-            if (!area) throw new Error('未找到操作区域');
 
-            if (blockMatch2) {
-                await sleep(200);
-                const formulaButton = await findButton(area, {
-                    hasSvg: true,
-                    buttonText: ['文本']
-                });
-
-                await simulateClick(formulaButton);
-                await sleep(200);
-
-                const formulaButton1 = await findButton(area, {
-                    buttonText: ['公式区块'],
-                    role: 'menuitem'
-                });
-
-                await simulateClick(formulaButton1);
-                await sleep(200);
-
-                return true;
-            }
-
-            // 使用抽离的函数处理公式按钮操作
-            const result = await handleFormulaButton(area);
-            if (!result && retryCount < MAX_RETRIES) {
-                console.log(`公式按钮操作失败，正在重试(${retryCount + 1}/${MAX_RETRIES})...`);
-                await sleep(500 * (retryCount + 1));
-                return await convertFormula(editor, formula, retryCount + 1);
-            }
-            return result;
-
-        } catch (error) {
-            console.error('转换公式时出错:', error);
-            updateStatus(`错误: ${error.message}`);
-            throw error;
-        }
-    }
-
-    // 公式查找
+    // region 公式查找
     function findFormulas(text) {
         const formulas = [];
 
@@ -437,39 +388,18 @@
                 let index = match.index;
                 let length = formula.length;
 
-                // 对于块级公式
-                if (regex === blockRegex && match[1]) {
-                    formula = match[1].trim();  // 移除可能的前后空白
-                    index = match.index + match[0].indexOf(match[1]);  // 精确定位公式内容
-                    length = match[1].length;
-
-                    console.log('处理后的公式:', {
-                        formula,
-                        index,
-                        length,
-                        surroundingContext: content.substring(Math.max(0, index - 10), index + length + 10)
+                if (formula.length > 2 && // 确保公式有实际内容
+                    ((formula.startsWith('$') && formula.endsWith('$')) ||
+                        (formula.startsWith('\\(') && formula.endsWith('\\)')) ||
+                        (formula.startsWith('\\[') && formula.endsWith('\\]'))
+                    )) {
+                    matches.push({
+                        formula: [match[0], match[1].replace(/\n/g, '')],
+                        index: index,
+                        length: length
                     });
-                } else {
-                    // 验证其他类型公式的结构完整性
-                    if (formula.length > 2 && // 确保公式有实际内容
-                        ((formula.startsWith('$') && formula.endsWith('$') && !formula.includes('$$')) ||
-                            (formula.startsWith('\\(') && formula.endsWith('\\)')) ||
-                            (formula.startsWith('\\[') && formula.endsWith('\\]'))
-                        )) {
-                        matches.push({
-                            formula: formula,
-                            index: index,
-                            length: length
-                        });
-                    }
-                    continue;
                 }
 
-                matches.push({
-                    formula: formula,
-                    index: index,
-                    length: length
-                });
             }
             return matches;
         }
@@ -522,6 +452,7 @@
         return null;
     }
 
+
     // 按钮查找
     async function findButton(area, options = {}) {
         const {
@@ -544,21 +475,134 @@
             if (button) {
                 return button;
             }
-            await sleep(50);
+            await sleep(20);
         }
         return null;
     }
 
+    function findAllFormulaIndexes(text, formula) {
+        let indexes = [];
+        let lastIndex = 0;
+
+        while ((lastIndex = text.indexOf(formula, lastIndex)) !== -1) {
+            indexes.push(lastIndex);
+            lastIndex += formula.length;
+        }
+
+        console.log(`找到 ${formula} 的所有位置:`, indexes);
+        return indexes;
+    }
+    function findIndependentSubstring(text, pattern, excludePatterns) {
+        // 存储所有匹配（包括要排除的模式）的位置和范围
+        const allMatches = [];
+
+        // 首先添加要排除的模式的匹配位置
+        excludePatterns.forEach(excludePattern => {
+            let pos = 0;
+            while ((pos = text.indexOf(excludePattern, pos)) !== -1) {
+                allMatches.push({
+                    start: pos,
+                    end: pos + excludePattern.length - 1,
+                    pattern: excludePattern,
+                    isTarget: false
+                });
+                pos += 1;
+            }
+        });
+
+        // 添加目标模式的匹配位置
+        let pos = 0;
+        while ((pos = text.indexOf(pattern, pos)) !== -1) {
+            allMatches.push({
+                start: pos,
+                end: pos + pattern.length - 1,
+                pattern: pattern,
+                isTarget: true
+            });
+            pos += 1;
+        }
+
+        // 筛选出独立的目标子串
+        return allMatches
+            .filter(match => {
+                if (!match.isTarget) return false; // 只关注目标模式
+
+                // 检查当前匹配是否被任何其他匹配包含
+                return !allMatches.some(other => {
+                    if (match === other) return false; // 跳过自身比较
+                    // 检查当前匹配的范围是否完全在其他匹配的范围内
+                    return (other.start <= match.start &&
+                        other.end >= match.end &&
+                        other.pattern.length > match.pattern.length);
+                });
+            })
+            .map(match => match.start);
+    };
+
+
+
+
     // 优化的公式转换
-    async function convertFormula(editor, formula, retryCount = 0) {
+    async function convertFormula(editor, formula_data, retryCount = 0, formulaInfo) {
+        let isblock_formula = false;
+        let isline_formula = false;
+        async function handleFormulaButton(editor, formula, retryCount = 0) {
+            try {
+                // ...其他代码保持不变...
+
+                const area = await findOperationArea();
+                if (!area) throw new Error('未找到操作区域');
+
+                if (isblock_formula) {
+                    await sleep(200);
+                    const formulaButton = await findButton(area, {
+                        hasSvg: false,
+                        buttonText: ['文本']
+                    });
+                    if (!formulaButton) {
+                        //还是不是块级公式 是行内公式
+                        isline_formula = true;
+                        const result = await handleLineFormulaButton(area);
+                        return result;
+                    };
+                    await simulateClick(formulaButton);
+                    await sleep(200);
+
+                    const formulaButton1 = await findButton(area, {
+                        buttonText: ['公式区块'],
+                        role: 'menuitem'
+                    });
+
+                    await simulateClick(formulaButton1);
+                    await sleep(200);
+
+                    return true;
+                }
+                const result = await handleLineFormulaButton(area);
+                if (!result && retryCount < MAX_RETRIES) {
+                    console.log(`公式按钮操作失败，正在重试(${retryCount + 1}/${MAX_RETRIES})...`);
+                    await sleep(500 * (retryCount + 1));
+                    return await convertFormula(editor, formula, retryCount + 1);
+                }
+                return result;
+
+            } catch (error) {
+                console.error('转换公式时出错:', error);
+                updateStatus(`错误: ${error.message}`);
+                throw error;
+            }
+        }
+
         const MAX_RETRIES = 3; // 最大重试次数
+        const formula = formula_data[1];
+        const origin_formula = formula_data[0];
         try {
             // 获取文本内容
             let fullText = editor.textContent;
 
             // 获取所有文本节点和位置信息
             let textNodes = [];
-            const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+            let walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
             let accumulatedLength = 0;
             let node;
 
@@ -579,250 +623,26 @@
 
             let formulaIndex;
             let formulaEnd;
-            let isBlockFormula = false;
-            let firstLine, lastLine;
 
-            // 查找块级公式
-            const blockRegex = /\$\$\n([\s\S]*?)\n\$\$/g;
-            const blockRegex2 = /\$\$([\s\S]*?)\$\$/g; // 不换行的块级公式
-            const bracketRegex = /\\\[([\s\S]*?)\\\]/g; // 匹配 \[...\] 格式的公式
+            const blockRegex = /\$\$[\r\n]?([\s\S]+?)[\r\n]?\$\$/g;  // 更宽松的块级公式匹配
+            const inlineRegex = /(?<!\$)\$([^\$]+?)\$(?!\$)/g;  // 行内公式，移除\n限制
+            const latexRegex = /\\\(([\s\S]*?)\\\)/g;  // 匹配LaTeX公式
+            const bracketRegex = /\\\[([\s\S]*?)\\\]/g;  // 匹配 \[...\] 格式的公式
 
-            let blockMatch;
-            let blockMatch2;
-            let foundMatch = false;
 
-            while ((blockMatch = blockRegex.exec(fullText)) !== null) {
-                // 提取公式内容（去掉首尾的$$）
-                const allLines = blockMatch[0].split('\n');
-                if (allLines.length >= 3) {
-                    const matchFormula = allLines.slice(1, -1).join('\n');
-                    if (matchFormula === formula) {
-                        foundMatch = true;
-                        break;
-                    }
-                }
+            // 块级和不是块级取决于第一个字符是不是公式
+
+
+
+            //找原始公式 还是用lastIndexOf 找真实公式要按下标
+            // region 找原始公式
+            formulaIndex = fullText.lastIndexOf(origin_formula);
+            if (formulaIndex === -1 || formulaIndex === undefined || formulaIndex === null) {
+                console.warn('未找到匹配的文本');
+                return;
             }
-
-            let bracketMatch = false;
-            if (bracketRegex.exec(fullText) !== null) {
-                bracketMatch = true;
-            }
-
-
-            //检查不换行的块级公式
-            if (!blockMatch && (blockRegex2.exec(fullText) !== null || bracketMatch)) {
-                blockMatch2 = true;
-                formulaIndex = fullText.indexOf(formula);
-                if (formulaIndex === -1) {
-                    console.warn('未找到匹配的文本');
-                    return;
-                }
-                formulaEnd = formulaIndex + formula.length;
-                const relevantNodes = textNodes.filter(nodeInfo => {
-                    return !(nodeInfo.end <= formulaIndex || nodeInfo.start >= formulaEnd);
-                });
-
-                if (relevantNodes.length === 0) {
-                    console.warn('未找到包含公式的文本节点');
-                    return;
-                }
-
-                const targetNode = relevantNodes[0].node;
-                let startOffset, endOffset;
-                if (bracketMatch) {
-                    startOffset = formulaIndex - relevantNodes[0].start;
-                    endOffset = startOffset + formula.length + 1;
-                } else {
-                    startOffset = formulaIndex - relevantNodes[0].start - 2;
-                    endOffset = startOffset + formula.length + 4;
-                }
-
-                let range = document.createRange();
-                range.setStart(targetNode, startOffset);
-                range.setEnd(targetNode, Math.min(endOffset, targetNode.length));
-
-                let selection = window.getSelection();
-                selection.removeAllRanges();
-                await sleep(200);
-                selection.addRange(range);
-                await sleep(200);
-
-                //如果startOffset 不是0 表示还是行内公式
-                if (startOffset !== 0) {
-                    blockMatch2 = false;
-                    fullText = editor.textContent;
-                    formulaIndex = fullText.indexOf(formula);
-                    if (formulaIndex === -1) {
-                        console.warn('未找到匹配的文本');
-                        return;
-                    }
-                    formulaEnd = formulaIndex + formula.length;
-
-                }
-
-                if (blockMatch2) {
-                    document.execCommand('insertText', false, formula);
-                } else if (bracketMatch) {
-                    document.execCommand('insertText', false, formula.replace(/^\\\[|\\\]$/g, '').replace(/\n/g, ''));
-                    fullText = editor.textContent;
-                    await sleep(300);
-                    startOffset = startOffset - 1;
-                    endOffset = startOffset + formula.length - 2;
-
-                    range = document.createRange();
-                    range.setStart(targetNode, startOffset);
-                    range.setEnd(targetNode, Math.min(endOffset, targetNode.length));
-
-                    selection.removeAllRanges();
-                    await sleep(200);
-                    selection.addRange(range);
-                    await sleep(200);
-
-
-                    targetNode.parentElement.focus();
-                    document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
-                    await sleep(50);
-
-                    const area = await findOperationArea();
-                    if (!area) throw new Error('未找到操作区域');
-                    const result = await handleFormulaButton(area);
-                    return result;
-
-                }
-                else {
-                    document.execCommand('insertText', false, '$' + formula + '$');
-                    fullText = editor.textContent;
-                }
-
-                await sleep(500);
-                //重新获取文本节点
-                textNodes = [];
-                const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
-                let accumulatedLength = 0;
-                let node;
-
-                while (node = walker.nextNode()) {
-                    const nodeLength = node.textContent.length;
-                    textNodes.push({
-                        node,
-                        start: accumulatedLength,
-                        end: accumulatedLength + nodeLength
-                    });
-                    accumulatedLength += nodeLength;
-                }
-            }
-
-
-            // 检查是否是块级公式并且内容匹配
-            if (blockMatch && foundMatch) {
-                blockMatch2 = true;
-                formulaIndex = fullText.indexOf(formula);
-                if (formulaIndex === -1) {
-                    console.warn('未找到匹配的文本');
-                    return;
-                }
-                formulaEnd = formulaIndex + formula.length;
-                const relevantNodes = textNodes.filter(nodeInfo => {
-                    return !(nodeInfo.end <= formulaIndex || nodeInfo.start >= formulaEnd);
-                });
-
-                if (relevantNodes.length === 0) {
-                    console.warn('未找到包含公式的文本节点');
-                    return;
-                }
-
-                const targetNode = relevantNodes[0].node;
-                let startOffset = formulaIndex - relevantNodes[0].start - 3;
-
-                //如果startOffset 不是0 表示还是行内公式
-                if (startOffset !== 0) {
-                    blockMatch2 = false;
-                }
-
-                const range = document.createRange();
-                range.setStart(targetNode, startOffset);
-                let endOffset = startOffset + formula.length + 6;
-                range.setEnd(targetNode, Math.min(endOffset, targetNode.length));
-
-                const selection = window.getSelection();
-                selection.removeAllRanges();
-                await sleep(200);
-                selection.addRange(range);
-                await sleep(200);
-
-
-                if (blockMatch2) {
-                    document.execCommand('insertText', false, formula.replace(/\n/g, ''));
-                } else {
-                    document.execCommand('insertText', false, '$' + formula + '$');
-                    fullText = editor.textContent;
-                }
-
-                await sleep(500);
-                //重新获取文本节点
-                textNodes = [];
-                const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
-                let accumulatedLength = 0;
-                let node;
-
-                while (node = walker.nextNode()) {
-                    const nodeLength = node.textContent.length;
-                    textNodes.push({
-                        node,
-                        start: accumulatedLength,
-                        end: accumulatedLength + nodeLength
-                    });
-                    accumulatedLength += nodeLength;
-                }
-
-                // // 记录第一行和第三行的$$位置，供后续删除使用
-                // firstLine = blockMatch.index;
-                // lastLine = blockMatch.index + blockMatch[0].length - 2;
-
-                // // 删除第一行和第三行的$$
-                // const selection = window.getSelection();
-                // selection.removeAllRanges();
-                // await sleep(2000);
-
-                // // 删除第三行的$$
-                // const range3 = document.createRange();
-                // const node3 = findNodeAtIndex(editor, lastLine, textNodes);
-                // if (node3) {
-                //     range3.setStart(node3.node, lastLine - node3.start);
-                //     range3.setEnd(node3.node, lastLine + 2 - node3.start);
-                //     range3.deleteContents();
-                //     await sleep(1000);
-                // }
-
-                // // 删除第一行的$$
-                // const range1 = document.createRange();
-                // const node1 = findNodeAtIndex(editor, firstLine, textNodes);
-                // if (node1) {
-                //     range1.setStart(node1.node, firstLine - node1.start);
-                //     range1.setEnd(node1.node, firstLine + 2 - node1.start);
-                //     range1.deleteContents();
-                //     await sleep(1000);
-
-                // }
-            }
-            else if (blockMatch2) {
-                formulaIndex = formulaIndex - 2;
-                formulaEnd = formulaIndex + formula.length;
-            }
-            else {
-                // 非块级公式，查找普通位置
-                fullText = editor.textContent;
-                formulaIndex = fullText.indexOf(formula);
-                if (formulaIndex === -1) {
-                    console.warn('未找到匹配的文本');
-                    return;
-                }
-                formulaEnd = formulaIndex + formula.length;
-            }
-
-
-            // 找到公式跨越的所有节点
-            const relevantNodes = textNodes.filter(nodeInfo => {
+            formulaEnd = formulaIndex + origin_formula.length;
+            let relevantNodes = textNodes.filter(nodeInfo => {
                 return !(nodeInfo.end <= formulaIndex || nodeInfo.start >= formulaEnd);
             });
 
@@ -831,69 +651,97 @@
                 return;
             }
 
+            let targetNode = relevantNodes[0].node;
+            let startOffset, endOffset;
+            startOffset = formulaIndex - relevantNodes[0].start;
+            endOffset = startOffset + origin_formula.length;
 
-            const targetNode = relevantNodes[0].node;
-            const startOffset = formulaIndex - relevantNodes[0].start;
-
-
-            // 设置选区
-            const range = document.createRange();
-            try {
-                // 限制选区仅包含公式内容
-                range.setStart(targetNode, startOffset);
-                const endOffset = startOffset + formula.length;
-                range.setEnd(targetNode, Math.min(endOffset, targetNode.length));
-            } catch (e) {
-                console.warn('Range设置失败:', e);
-                return false;
+            //如果startOffset 不是0 表示还是行内公式
+            if (startOffset !== 0) {
+                isline_formula = true;
+            } else {
+                isblock_formula = true;
             }
 
+            let range = document.createRange();
+            range.setStart(targetNode, startOffset);
+            range.setEnd(targetNode, Math.min(endOffset, targetNode.length));
 
-            // 添加调试信息
-            console.log('选区信息:', {
-                formula,
-                nodeCount: relevantNodes.length,
-                startOffset,
-                text: range.toString()
+            let selection = window.getSelection();
+            selection.removeAllRanges();
+            await sleep(200);
+            selection.addRange(range);
+            await sleep(200);
+
+            document.execCommand('insertText', false, formula.replace(/\n/g, ''));
+            await sleep(300);
+
+            //重新获取文本节点
+            // 获取文本内容
+            fullText = editor.textContent;
+
+            // 获取所有文本节点和位置信息
+            textNodes = [];
+            walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+            accumulatedLength = 0;
+
+            while (node = walker.nextNode()) {
+                const nodeLength = node.textContent.length;
+                textNodes.push({
+                    node,
+                    start: accumulatedLength,
+                    end: accumulatedLength + nodeLength
+                });
+                accumulatedLength += nodeLength;
+            }
+
+            // endregion
+            // region 找真实公式
+            formulaIndex = findIndependentSubstring(fullText, formula, formulaInfo.otherFormulas);
+
+
+            if (formulaIndex === -1 || Array.isArray(formulaIndex) && formulaIndex.length === 0) {
+                console.warn('未找到匹配的文本');
+                return;
+            }
+            formulaIndex = formulaIndex[0];
+            formulaEnd = formulaIndex + formula.length;
+            relevantNodes = textNodes.filter(nodeInfo => {
+                return !(nodeInfo.end <= formulaIndex || nodeInfo.start >= formulaEnd);
             });
 
-            const selection = window.getSelection();
+            if (relevantNodes.length === 0) {
+                console.warn('未找到包含公式的文本节点');
+                return;
+            }
+
+            targetNode = relevantNodes[0].node;
+            startOffset = formulaIndex - relevantNodes[0].start;
+            endOffset = startOffset + formula.length;
+
+            range = document.createRange();
+            range.setStart(targetNode, startOffset);
+            range.setEnd(targetNode, Math.min(endOffset, targetNode.length));
+
+            selection = window.getSelection();
             selection.removeAllRanges();
+            await sleep(200);
             selection.addRange(range);
+            await sleep(150);
+
+            // 验证选择是否成功
+            if (selection.rangeCount === 0) {
+                console.warn('选择范围设置失败，尝试重新设置...');
+                selection.removeAllRanges();
+                await sleep(200);
+                selection.addRange(range);
+            }
 
             targetNode.parentElement.focus();
             document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
-            await sleep(50);
+            await sleep(250);
 
-            const area = await findOperationArea();
-            if (!area) throw new Error('未找到操作区域');
-
-
-            if (blockMatch2) {
-
-                await sleep(200); // 增加等待时间
-
-                const formulaButton = await findButton(area, {
-                    hasSvg: true,
-                    buttonText: ['文本']
-                });
-
-                await simulateClick(formulaButton);
-                await sleep(200); // 增加等待时间
-
-                const formulaButton1 = await findButton(area, {
-                    buttonText: ['公式区块'],
-                    role: 'menuitem'
-                });
-
-                await simulateClick(formulaButton1);
-                await sleep(200); // 增加等待时间
-
-                return true;
-            }
-
-            const result = await handleFormulaButton(area);
-            return result;
+            await handleFormulaButton(editor, formula_data);
 
         } catch (error) {
             console.error('转换公式时出错:', error);
@@ -936,17 +784,32 @@
             updateStatus(`找到 ${totalFormulas} 个公式，开始转换...`);
 
             // 从末尾开始处理公式
+            // 需要在这里加上公式的索引，来防止一个大公式里包括了其他小公式
             for (const { editor, formulas } of allFormulas.reverse()) {
-                for (const { formula } of formulas.reverse()) {
-                    await convertFormula(editor, formula);
+                for (let i = formulas.length - 1; i >= 0; i--) {
+                    const formula = formulas[i].formula;
+                    const formulasArray = formulas.map(f => f.formula[1]).filter((f, index) => index !== i);
+                    await convertFormula(editor, formula, 0, {
+                        index: i,
+                        otherFormulas: formulasArray,
+                        length: formulasArray.length
+                    });
                     formulaCount++;
                     updateProgress(formulaCount, totalFormulas);
                     updateStatus(`正在转换... (${formulaCount}/${totalFormulas})`);
                 }
             }
 
-            updateStatus(`Completed!`, 3000);
-            convertBtn.textContent = `🔄`; // (${formulaCount})
+            updateStatus(`Done:${formulaCount}`, 3000);
+            convertBtn.textContent = `🔄 (${formulaCount})`;
+
+            // 转换完成后自动收起面板
+            setTimeout(() => {
+                if (!panel.classList.contains('collapsed')) {
+                    panel.classList.add('collapsed');
+                    isCollapsed = true;
+                }
+            }, 1000);
 
         } catch (error) {
             console.error('转换过程出错:', error);
@@ -990,7 +853,7 @@
 
         for (const event of events) {
             element.dispatchEvent(event);
-            await sleep(20);
+            await sleep(30);
         }
     }
 
@@ -1002,7 +865,7 @@
     setTimeout(() => {
         const formulas = findFormulas(document.body.textContent);
         if (formulas.length > 0) {
-            convertBtn.textContent = `🔄`; // (${formulas.length})
+            convertBtn.textContent = `🔄(${formulas.length})`;
         }
     }, 1000);
 
