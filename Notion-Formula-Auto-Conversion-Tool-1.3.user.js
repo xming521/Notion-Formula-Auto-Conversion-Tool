@@ -569,7 +569,7 @@
                     await sleep(200);
 
                     const formulaButton1 = await findButton(area, {
-                        buttonText: ['公式区块'],
+                        buttonText: ['公式块','公式区块'],
                         role: 'menuitem'
                     });
 
