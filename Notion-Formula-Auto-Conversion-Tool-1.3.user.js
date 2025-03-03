@@ -569,7 +569,7 @@
                     await sleep(200);
 
                     const formulaButton1 = await findButton(area, {
-                        buttonText: ['公式块','公式区块'],
+                        buttonText: ['公式块', '公式区块'],
                         role: 'menuitem'
                     });
 
@@ -594,7 +594,7 @@
         }
 
         const MAX_RETRIES = 3; // 最大重试次数
-        const formula = formula_data[1];
+        let formula = formula_data[1];
         const origin_formula = formula_data[0];
         try {
             // 获取文本内容
@@ -620,7 +620,6 @@
             if (fullText.includes('⁡')) {
                 return true;
             }
-
             let formulaIndex;
             let formulaEnd;
 
@@ -664,8 +663,37 @@
             }
 
             let range = document.createRange();
-            range.setStart(targetNode, startOffset);
-            range.setEnd(targetNode, Math.min(endOffset, targetNode.length));
+            if (relevantNodes.length > 1) {
+                // 计算第一个节点的起始偏移
+                let startNode = relevantNodes[0].node;
+                let startNodeOffset = formulaIndex - relevantNodes[0].start;
+
+                // 计算最后一个节点的结束偏移
+                let lastNode = relevantNodes[relevantNodes.length - 1].node;
+                let formulaRemainingLength = origin_formula.length;
+
+                // 减去前面节点已经包含的字符长度
+                for (let i = 0; i < relevantNodes.length - 1; i++) {
+                    // 如果是第一个节点，只计算从起始位置到结尾的长度
+                    if (i === 0) {
+                        formulaRemainingLength -= (relevantNodes[i].end - relevantNodes[i].start - startNodeOffset);
+                    } else {
+                        // 中间节点，计算整个节点的长度
+                        formulaRemainingLength -= (relevantNodes[i].end - relevantNodes[i].start);
+                    }
+                }
+
+                // 最后一个节点的结束偏移就是公式剩余长度
+                let endNodeOffset = Math.min(formulaRemainingLength, lastNode.length);
+
+                range.setStart(startNode, startNodeOffset);
+                range.setEnd(lastNode, endNodeOffset);
+            } else {
+                range.setStart(targetNode, startOffset);
+                range.setEnd(targetNode, Math.min(endOffset, targetNode.length));
+            }
+            // range.setEnd(targetNode, endOffset);//会报错
+
 
             let selection = window.getSelection();
             selection.removeAllRanges();
@@ -673,8 +701,20 @@
             selection.addRange(range);
             await sleep(200);
 
-            document.execCommand('insertText', false, formula.replace(/\n/g, ''));
+            formula = formula.replace(/_/g, '⁡');
+            document.execCommand('insertText', false, formula);
             await sleep(300);
+
+            const italicElements = editor.querySelectorAll('span[style*="font-style:italic"]');
+            italicElements.forEach(el => {
+                // 如果在公式区域内，恢复为下划线
+                el.style.fontStyle = 'normal';
+                const originalText = el.textContent;
+                el.textContent = '_' + originalText;
+
+                // 更新formula变量，将斜体文本替换为带下划线的文本
+                formula = formula.replace(originalText, '_' + originalText);
+            });
 
             //重新获取文本节点
             // 获取文本内容
@@ -720,8 +760,35 @@
             endOffset = startOffset + formula.length;
 
             range = document.createRange();
-            range.setStart(targetNode, startOffset);
-            range.setEnd(targetNode, Math.min(endOffset, targetNode.length));
+            if (relevantNodes.length > 1) {
+                // 计算第一个节点的起始偏移
+                let startNode = relevantNodes[0].node;
+                let startNodeOffset = formulaIndex - relevantNodes[0].start;
+
+                // 计算最后一个节点的结束偏移
+                let lastNode = relevantNodes[relevantNodes.length - 1].node;
+                let formulaRemainingLength = origin_formula.length;
+
+                // 减去前面节点已经包含的字符长度
+                for (let i = 0; i < relevantNodes.length - 1; i++) {
+                    // 如果是第一个节点，只计算从起始位置到结尾的长度
+                    if (i === 0) {
+                        formulaRemainingLength -= (relevantNodes[i].end - relevantNodes[i].start - startNodeOffset);
+                    } else {
+                        // 中间节点，计算整个节点的长度
+                        formulaRemainingLength -= (relevantNodes[i].end - relevantNodes[i].start);
+                    }
+                }
+
+                // 最后一个节点的结束偏移就是公式剩余长度
+                let endNodeOffset = Math.min(formulaRemainingLength, lastNode.length);
+
+                range.setStart(startNode, startNodeOffset);
+                range.setEnd(lastNode, endNodeOffset);
+            } else {
+                range.setStart(targetNode, startOffset);
+                range.setEnd(targetNode, Math.min(endOffset, targetNode.length));
+            }
 
             selection = window.getSelection();
             selection.removeAllRanges();
