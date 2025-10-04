@@ -467,7 +467,7 @@
 
         for (let i = 0; i < attempts; i++) {
             const button = cachedButtons.find(btn => {
-                if (hasSvg && btn.querySelector('svg.equation')) return true;
+                if (hasSvg && btn.querySelector('svg.squareRootSmall')) return true;
                 const text = btn.textContent.toLowerCase();
                 return buttonText.some(t => text.includes(t));
             });
@@ -697,11 +697,11 @@
 
             let selection = window.getSelection();
             selection.removeAllRanges();
-            await sleep(200);
+            await sleep(100);
             selection.addRange(range);
-            await sleep(200);
+            await sleep(100);
 
-            formula = formula.replace(/_/g, '⁡');
+            formula = formula.replace(/\n/g, '')
             document.execCommand('insertText', false, formula);
             await sleep(300);
 
@@ -710,11 +710,12 @@
                 // 如果在公式区域内，恢复为下划线
                 el.style.fontStyle = 'normal';
                 const originalText = el.textContent;
-                el.textContent = '_' + originalText;
+                el.textContent = '_' + originalText + '_';  // 在前后都添加下划线
 
-                // 更新formula变量，将斜体文本替换为带下划线的文本
-                formula = formula.replace(originalText, '_' + originalText);
+                // 更新formula变量，将斜体文本替换为前后都带下划线的文本
+                formula = formula.replace(originalText, '_' + originalText + '_');
             });
+            await sleep(300);
 
             //重新获取文本节点
             // 获取文本内容
